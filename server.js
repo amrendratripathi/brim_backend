@@ -5,20 +5,17 @@ require("dotenv").config();
 const app = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Allow Vite dev server (port 8080) and any production domain you deploy to.
-const allowedOrigins = [
-  "http://localhost:8080",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  // Add your production domain here, e.g. "https://brimstone.vercel.app"
-];
-
+// Auth security is handled by JWT — CORS origin restriction adds no extra
+// security here and only blocks legitimate Vercel/Render preview URLs.
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, curl, server-to-server)
+      // Allow requests with no origin (Postman, curl, Render health checks)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow any localhost port (local development)
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+      // Allow all HTTPS origins (Vercel, Render, custom domains)
+      if (origin.startsWith("https://")) return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' is not allowed`));
     },
     credentials: true,
