@@ -1,59 +1,66 @@
 /**
  * scripts/seedAdmin.js
- *
- * Creates a default admin user in Supabase.
- * Run with: npm run seed:admin
- *
- * Credentials:
- *   email:    admin@brimstone.com
- *   password: admin123
- *   role:     admin
+ * Creates the first admin user in the system.
+ * Run: node scripts/seedAdmin.js
  */
-
-const bcrypt = require("bcryptjs");
 require("dotenv").config();
+const { createClient } = require("@supabase/supabase-js");
+const bcrypt           = require("bcryptjs");
+const readline         = require("readline");
 
-const supabase = require("../src/config/supabase");
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
-const seed = async () => {
-  try {
-    // Check if admin already exists
-    const { data: existing } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", "admin@brimstone.com")
-      .single();
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 
-    if (existing) {
-      console.log("✅ Admin user already exists. Skipping seeder.");
-      process.exit(0);
-    }
+(async () => {
+  console.log("\n🌿 Brimstone — Admin Seeder\n");
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+  const name     = await ask("Admin name:     ");
+  const email    = await ask("Admin email:    ");
+  const password = await ask("Admin password: ");
+  const mobile   = await ask("Mobile number:  ");
+  rl.close();
 
-    const { error } = await supabase.from("users").insert([
-      {
-        name: "Brimstone Admin",
-        email: "admin@brimstone.com",
-        password: hashedPassword,
-        mobileno: "9000000000",
-        role: "admin",
-      },
-    ]);
-
-    if (error) {
-      console.error("Failed to create admin:", error.message);
-      process.exit(1);
-    }
-
-    console.log("✅ Admin user created successfully!");
-    console.log("   Email:    admin@brimstone.com");
-    console.log("   Password: admin123");
-    process.exit(0);
-  } catch (err) {
-    console.error("Seeder error:", err);
+  if (!name || !email || !password || !mobile) {
+    console.error("❌ All fields are required.");
     process.exit(1);
   }
-};
 
-seed();
+  if (password.length < 8) {
+    console.error("❌ Password must be at least 8 characters.");
+    process.exit(1);
+  }
+
+  const hashed = await bcrypt.hash(password, 12);
+
+  const { data, error } = await supabase
+    .from("users")
+    .insert([{
+      name,
+      email,
+      password:  hashed,
+      mobileno:  mobile,
+      app_role: "admin",
+    }])
+    .select("id, name, email, app_role")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      console.error("❌ An account with this email already exists.");
+    } else {
+      console.error("❌ Error:", error.message);
+    }
+    process.exit(1);
+  }
+
+  console.log("\n✅ Admin created successfully!");
+  console.log(`   ID:    ${data.id}`);
+  console.log(`   Name:  ${data.name}`);
+  console.log(`   Email: ${data.email}`);
+  console.log(`   Role:  ${data.app_role}\n`);
+})();

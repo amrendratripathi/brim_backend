@@ -1,15 +1,18 @@
-const express = require("express");
-const router = express.Router();
-const { signup, login, getProfile } = require("../controllers/authController");
-const { protect } = require("../middleware/auth");
+const router = require("express").Router();
+const { register, login, getMe, assignRole } = require("../controllers/authController");
+const { authenticate, requireRole } = require("../middleware/auth");
 
-// POST /api/auth/signup
-router.post("/signup", signup);
+// Public
+router.post("/register", register);
+router.post("/signup",   register);   // alias — frontend calls /signup
 
-// POST /api/auth/login
-router.post("/login", login);
+router.post("/login",    login);
 
-// GET /api/auth/profile  (protected)
-router.get("/profile", protect, getProfile);
+// Authenticated
+router.get("/me",      authenticate, getMe);
+router.get("/profile", authenticate, getMe);   // alias — frontend calls /profile
+
+// Admin only — assign roles to users (worker, admin, customer)
+router.patch("/role", authenticate, requireRole("admin"), assignRole);
 
 module.exports = router;

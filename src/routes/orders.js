@@ -6,18 +6,18 @@ const {
   getAllOrders,
   updateOrderStatus,
 } = require("../controllers/orderController");
-const { protect, adminOnly } = require("../middleware/auth");
+const { authenticate, requireRole } = require("../middleware/auth");
 
 // POST /api/orders  — place a new order (authenticated users)
-router.post("/", protect, createOrder);
+router.post("/", authenticate, createOrder);
 
 // GET /api/orders/user/my-orders  — get logged-in user's orders
-router.get("/user/my-orders", protect, getMyOrders);
+router.get("/user/my-orders", authenticate, getMyOrders);
 
 // GET /api/orders/admin/all-orders  — get all orders (admin only)
-router.get("/admin/all-orders", protect, adminOnly, getAllOrders);
+router.get("/admin/all-orders", authenticate, requireRole("admin"), getAllOrders);
 
 // PUT /api/orders/:orderId/status  — update order status (admin only)
-router.put("/:orderId/status", protect, adminOnly, updateOrderStatus);
+router.put("/:orderId/status", authenticate, requireRole("admin"), updateOrderStatus);
 
 module.exports = router;

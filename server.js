@@ -1,20 +1,15 @@
 const express = require("express");
-const cors = require("cors");
+const cors    = require("cors");
 require("dotenv").config();
 
 const app = express();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Auth security is handled by JWT — CORS origin restriction adds no extra
-// security here and only blocks legitimate Vercel/Render preview URLs.
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (Postman, curl, Render health checks)
       if (!origin) return callback(null, true);
-      // Allow any localhost port (local development)
       if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
-      // Allow all HTTPS origins (Vercel, Render, custom domains)
       if (origin.startsWith("https://")) return callback(null, true);
       callback(new Error(`CORS: origin '${origin}' is not allowed`));
     },
@@ -22,17 +17,32 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/api/auth", require("./src/routes/auth"));
-app.use("/api/orders", require("./src/routes/orders"));
+app.use("/api/auth",    require("./src/routes/auth"));
+app.use("/api/orders",  require("./src/routes/orders"));      // existing e-commerce orders
+app.use("/api/workers", require("./src/routes/workers"));     // worker management
+app.use("/api/coupons", require("./src/routes/coupons"));     // coupon validation & orders
+app.use("/api/payouts", require("./src/routes/payouts"));     // payout requests & approvals
+app.use("/api/admin",   require("./src/routes/admin"));       // admin dashboard & analytics
 
-// Health check
-app.get("/", (req, res) => res.json({ message: "Brimstone API running ✅" }));
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/", (_req, res) =>
+  res.json({
+    message: "🌿 Brimstone API running",
+    version: "2.0.0",
+    modules: ["auth", "orders", "workers", "coupons", "payouts", "admin"],
+  })
+);
+
+// ── 404 handler ───────────────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
 
 // ── Global error handler ──────────────────────────────────────────────────────
-app.use((err, req, res, _next) => {
+app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err.message);
   res.status(500).json({ success: false, message: err.message || "Internal server error." });
 });
@@ -41,4 +51,5 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🌿 Brimstone server running on http://localhost:${PORT}`);
+  console.log(`   Modules: auth | orders | workers | coupons | payouts | admin`);
 });

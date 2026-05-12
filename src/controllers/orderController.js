@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabaseAdmin: supabase } = require("../config/supabase");
 
 /**
  * Validate a UUID (Supabase uses UUIDs as primary keys)
@@ -21,7 +21,7 @@ const createOrder = async (req, res) => {
     }
 
     // 2. Get userId from JWT
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     // 3. Insert order into Supabase
     const { data: order, error } = await supabase
@@ -67,7 +67,7 @@ const getMyOrders = async (req, res) => {
     const { data: orders, error } = await supabase
       .from("orders")
       .select("id, status, created_at, pricing, items")
-      .eq("user_id", req.user.userId)
+      .eq("user_id", req.user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
