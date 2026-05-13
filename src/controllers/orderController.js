@@ -44,6 +44,34 @@ const createOrder = async (req, res) => {
       return res.status(500).json({ success: false, message: "Failed to place order." });
     }
 
+    // 3.5 If a coupon was used, apply it to the worker system
+    const code = pricing?.couponCode || pricing?.coupon_code;
+    const subtotal = pricing?.subtotal || pricing?.sub_total;
+    
+    if (code) {
+      console.log(`[Referral] Applying coupon "${code}" for order ${order.id}. Subtotal: ${subtotal || pricing.total}`);
+      
+      const { data: couponData, error: couponError } = await supabase.rpc("apply_coupon_and_create_order", {
+        p_coupon_code: String(code),
+        p_customer_id: userId,
+        p_order_amount: parseFloat(subtotal || pricing.total || 0),
+        p_metadata: { 
+          shop_order_id: order.id,
+          items_count: items.length,
+          total_with_tax: pricing.total,
+          applied_at: new Date().toISOString()
+        }
+      });
+      
+      if (couponError) {
+        console.error("[Referral] Supabase RPC error:", couponError);
+      } else if (couponData && !couponData.success) {
+        console.error("[Referral] Logic failed:", couponData.reason || "Unknown reason");
+      } else {
+        console.log("[Referral] Success! Link ID:", couponData?.order_id);
+      }
+    }
+
     // 4. Return created order
     return res.status(201).json({
       success: true,
@@ -165,6 +193,9 @@ const updateOrderStatus = async (req, res) => {
       return res.status(500).json({ success: false, message: "Failed to update order status." });
     }
 
+    // Sync status with worker commission system
+    await syncCouponOrderStatus(orderId, status);
+
     return res.status(200).json({
       success: true,
       message: `Order status updated to ${status}`,
@@ -172,6 +203,27 @@ const updateOrderStatus = async (req, res) => {
   } catch (err) {
     console.error("Update order status error:", err);
     return res.status(500).json({ success: false, message: "Server error. Please try again." });
+  }
+};
+
+// Helper function to sync order status to coupon_orders if needed
+const syncCouponOrderStatus = async (shopOrderId, newStatus) => {
+  try {
+    // Find the coupon_order that has this shop_order_id in its metadata
+    const { data } = await supabase
+      .from("coupon_orders")
+      .select("id")
+      .contains("metadata", { shop_order_id: shopOrderId })
+      .single();
+
+    if (data) {
+      await supabase.rpc("confirm_coupon_order", {
+        p_order_id: data.id,
+        p_new_status: newStatus
+      });
+    }
+  } catch (err) {
+    console.error("Failed to sync coupon order status:", err);
   }
 };
 

@@ -146,11 +146,11 @@ BEGIN
 
   -- Step 2: Insert coupon order
   INSERT INTO coupon_orders (
-    worker_id, customer_id, order_amount,
+    worker_id, customer_id, order_id, order_amount,
     discount_amount, final_amount,
     coupon_code, order_status, metadata
   ) VALUES (
-    v_worker.id, p_customer_id, p_order_amount,
+    v_worker.id, p_customer_id, (p_metadata->>'shop_order_id')::UUID, p_order_amount,
     v_discount, v_final,
     upper(trim(p_coupon_code)), 'pending', p_metadata
   ) RETURNING id INTO v_order_id;
