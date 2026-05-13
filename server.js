@@ -32,6 +32,11 @@ app.get("/", (_req, res) =>
   res.json({
     message: "🌿 Brimstone API running",
     version: "2.0.0",
+    env: {
+      supabase_url: !!process.env.SUPABASE_URL,
+      supabase_key: !!process.env.SUPABASE_SERVICE_KEY,
+      jwt_secret: !!process.env.JWT_SECRET
+    },
     modules: ["auth", "orders", "workers", "coupons", "payouts", "admin"],
   })
 );
