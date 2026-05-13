@@ -47,6 +47,7 @@ const createOrder = async (req, res) => {
     // 3.5 If a coupon was used, apply it to the worker system
     const code = pricing?.couponCode || pricing?.coupon_code;
     const subtotal = pricing?.subtotal || pricing?.sub_total;
+    let referralStatus = null;
     
     if (code) {
       console.log(`[Referral] Applying coupon "${code}" for order ${order.id}. Subtotal: ${subtotal || pricing.total}`);
@@ -65,10 +66,13 @@ const createOrder = async (req, res) => {
       
       if (couponError) {
         console.error("[Referral] Supabase RPC error:", couponError);
+        referralStatus = { success: false, error: couponError.message };
       } else if (couponData && !couponData.success) {
         console.error("[Referral] Logic failed:", couponData.reason || "Unknown reason");
+        referralStatus = { success: false, reason: couponData.reason };
       } else {
         console.log("[Referral] Success! Link ID:", couponData?.order_id);
+        referralStatus = { success: true, orderId: couponData?.order_id };
       }
     }
 
@@ -76,6 +80,7 @@ const createOrder = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Order placed successfully!",
+      referralStatus,
       order: {
         id: order.id,
         status: order.status,
